@@ -3,7 +3,29 @@
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+#[cfg(all(target_env = "gnu", not(target_os = "windows")))]
+fn limit_malloc_arenas(arenas: std::os::raw::c_int) {
+    // Each glibc malloc arena keeps its own dirtied heap pages; with the
+    // default of 8 arenas per core, idle applets waste several MiB each.
+    const M_ARENA_MAX: std::os::raw::c_int = -8;
+    unsafe extern "C" {
+        fn mallopt(param: std::os::raw::c_int, value: std::os::raw::c_int) -> std::os::raw::c_int;
+    }
+    unsafe {
+        mallopt(M_ARENA_MAX, arenas);
+    }
+}
+
 fn main() -> cosmic::iced::Result {
+    // The iced daemon runner spawns a default tokio runtime with one worker
+    // per core; applets are idle most of the time and don't need that.
+    if std::env::var_os("TOKIO_WORKER_THREADS").is_none() {
+        // Safe: no other threads exist yet.
+        unsafe { std::env::set_var("TOKIO_WORKER_THREADS", "2") };
+    }
+    #[cfg(all(target_env = "gnu", not(target_os = "windows")))]
+    limit_malloc_arenas(2);
+
     tracing_subscriber::fmt().with_env_filter("warn").init();
     let _ = tracing_log::LogTracer::init();
 
