@@ -235,8 +235,8 @@ impl cosmic::Application for Window {
             .core
             .applet
             .text(applet_text)
-            .width(Length::Fixed(reserved_width.into()))
-            .align_x(Alignment::Center);
+            .width(iced::Length::Fixed(reserved_width.into()))
+            .align_x(iced::Alignment::Center);
         let button = self
             .core
             .applet
